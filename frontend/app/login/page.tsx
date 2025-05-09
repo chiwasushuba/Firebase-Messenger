@@ -8,10 +8,10 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Eye, EyeOff } from "lucide-react"
-import { auth } from '@/utils/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth, githubProvider, googleProvider } from '@/utils/firebase';
+import { AuthError, signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { useRouter } from "next/navigation"; 
-import axios from 'axios';
+import Image from 'next/image';
 
 const LoginPage = () => {
   const router = useRouter();
@@ -23,60 +23,80 @@ const LoginPage = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('')
+
+    if(!email.trim()){
+      setError("Email is empty!")
+      return
+    }
+
+    if(!password.trim()){
+      setError("Password is empty!")
+      return
+    }
+    try{
+      await signInWithEmailAndPassword(auth, email, password);
+      router.push("/")
+      
+    } catch (err: unknown) {
+      const error = err as AuthError;
+  
+      switch (error.code) {
+        case 'auth/user-not-found':
+          setError('No account found with this email.');
+          break;
+        case 'auth/wrong-password':
+          setError('Incorrect password.');
+          break;
+        case 'auth/invalid-email':
+          setError('Invalid email address.');
+          break;
+        case 'auth/too-many-requests':
+          setError('Too many failed attempts. Please try again later.');
+          break;
+        default:
+          setError('Login failed: ' + error.message);
+          break;
+      }
+    }
+  };
+
+  // Google Login handler
+  const handleGoogleLogin = async () => {
     try {
-      const userCred = await signInWithEmailAndPassword(auth, email, password);
-      const token = await userCred.user.getIdToken();
-  
-      // Step 1: Send token to backend to set secure cookie
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_PORT}/api/user/firebase-login`,
-        { idToken: token },
-        { withCredentials: true }
-      );
-  
-      // Step 2: Call login route which reads the cookie
-      const resp = await axios.post(
-        `${process.env.NEXT_PUBLIC_PORT}/api/user/login`, 
-        {}, 
-        { withCredentials: true }
-      );
-  
-      if (resp.status === 200) {
-        router.push("/");
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      if (user) {
+        router.push('/');
       }
-    } catch (err: any) {
-      console.error("Login failed:", err);
-  
-      if (err.code) {
-        switch (err.code) {
-          case "auth/user-not-found":
-            setError("No account found with this email.");
-            break;
-          case "auth/wrong-password":
-            setError("Incorrect password.");
-            break;
-          case "auth/invalid-email":
-            setError("Invalid email format.");
-            break;
-          default:
-            setError("Login failed. Please try again.");
-        }
-      } else {
-        setError("An unknown error occurred.");
+    } catch (e: unknown) {
+      setError('Error logging in with Google');
+    }
+  };
+
+  // GitHub login handler
+  const handleGithubLogin = async () => {
+    try {
+      const result = await signInWithPopup(auth, githubProvider);
+      const user = result.user;
+      if (user) {
+        router.push('/');
       }
+    } catch (e: unknown) {
+      setError('Error logging in with GitHub');
     }
   };
   
 
   return (
     <div className='min-h-screen flex justify-center items-center bg-gradient-to-r from-[#2D336B] via-[#7886C7] to-[#A9B5DF]'>  
-      <div className='w-[50em] h-[24em] flex'>
+      <div className='w-[50em] h-[26em] flex'>
         <motion.div className="w-1/2 h-full bg-gray-200 flex flex-col border-solid border p-10 gap-4"
           initial={{opacity: 0}}
           animate={{opacity: 1}}
           transition={{duration: 1}}
         >
-          <form onSubmit={handleLogin} className="flex flex-col gap-6 h-full justify-between">
+          <form onSubmit={handleLogin} className="flex flex-col gap-3 h-full justify-between">
             <div className='flex flex-col gap-6'>
               <div className='flex flex-col'>
                 <Label className='font-mono text-2xl font-bold'>Welcome Back</Label>
@@ -132,6 +152,31 @@ const LoginPage = () => {
               <Button type="submit" className='w-1/2 font-mono hover:bg-gray-700 active:bg-gray-600 cursor-pointer'>Login</Button>
             </div>
           </form>
+          <div className='flex justify-center gap-6'>
+                <Button
+                  onClick={handleGoogleLogin}
+                  className='w-auto p-2 flex items-center justify-center bg-white hover:bg-gray-700 active:bg-gray-600'
+                >
+                  <Image
+                    src='/googleLogo.webp'
+                    alt='Google'
+                    width={30}
+                    height={30}
+                  />
+                </Button>
+
+                <Button
+                  onClick={handleGithubLogin}
+                  className='w-auto p-2 flex items-center justify-center bg-white hover:bg-gray-200 active:bg-gray-600'
+                >
+                  <Image
+                    src='/githubLogo.png'
+                    alt='GitHub'
+                    width={30}
+                    height={30}
+                  />
+                </Button>
+              </div>
         </motion.div>
 
         <Link href="/signup" className="w-1/2 h-full" onClick={() => { setEmail(""); setPassword(""); }}>

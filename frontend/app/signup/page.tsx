@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,81 +6,91 @@ import { Label } from '@radix-ui/react-label';
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Eye, EyeOff } from "lucide-react";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { auth } from "@/utils/firebase";
-import { useRouter } from "next/navigation"; 
-import axios from 'axios';
+import { AuthError } from "firebase/auth";
+import { Eye, EyeOff } from 'lucide-react';
+import { createUserWithEmailAndPassword, updateProfile, signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider, githubProvider } from '@/utils/firebase';  // Update to include OAuth providers
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 const SignupPage = () => {
   const router = useRouter();
-
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
-  const [error, setError] = useState('')
+  const [error, setError] = useState('');
 
+  // Email signup handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(""); 
-  
+    setError('');
+
+    if(!email.trim()){
+      setError("Email is empty!")
+      return
+    }
+    if(!username.trim()){
+      setError("Username is username!")
+      return
+    }
+    if(!password.trim()){
+      setError("Password is empty!")
+      return
+    }
+
     try {
-      // 1. Pre-check if username is taken
-      const preCheck = await axios.post(`${process.env.NEXT_PUBLIC_PORT}/api/user/check`, { username });
-      if (preCheck.status !== 200) {
-        setError("Username already taken.");
-        return;
-      }
-    
-      // 2. Firebase create user
-      const userCred = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(userCred.user, { displayName: username });
-      const token = await userCred.user.getIdToken();
-    
-      // 3. Send token to backend to set the cookie
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_PORT}/api/user/firebase-login`,
-        { idToken: token },
-        { withCredentials: true } // important to enable cookie
-      );
-    
-      // 4. Now call signup without token in header
-      const resp = await axios.post(
-        `${process.env.NEXT_PUBLIC_PORT}/api/user/signup`,
-        { email, username },
-        { withCredentials: true } // needed to send cookie
-      );
-    
-      if (resp.status === 200) {
-        router.push("/");
-      }
-    } catch (err: any) {
-      console.error("Signup failed:", err);
+      await createUserWithEmailAndPassword(auth, email, password);
+      router.push('/');
+    } catch (err: unknown) {
+      const error = err as AuthError;
   
-      if (err.code?.startsWith("auth/")) {
-        // Firebase Auth errors
-        const messages: Record<string, string> = {
-          "auth/email-already-in-use": "Email is already in use.",
-          "auth/invalid-email": "Invalid email format.",
-          "auth/weak-password": "Password is too weak.",
-        };
-        setError(messages[err.code] || err.message || "An unexpected Firebase error occurred.");
-      } else if (axios.isAxiosError(err)) {
-        // Axios (backend) errors
-        const msg = err.response?.data?.message || "Server error. Please try again.";
-        setError(err.response?.status === 409 ? msg : "Something went wrong.");
-      } else {
-        setError("An unknown error occurred.");
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          setError('This email is already in use.');
+          break;
+        case 'auth/invalid-email':
+          setError('The email address is not valid.');
+          break;
+        case 'auth/weak-password':
+          setError('The password is too weak.');
+          break;
+        default:
+          setError('Error creating account: ' + error.message);
+          break;
       }
     }
   };
-  
+
+  // Google signup handler
+  const handleGoogleSignup = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      if (user) {
+        router.push('/');
+      }
+    } catch (e: unknown) {
+      setError('Error logging in with Google');
+    }
+  };
+
+  // GitHub signup handler
+  const handleGithubSignup = async () => {
+    try {
+      const result = await signInWithPopup(auth, githubProvider);
+      const user = result.user;
+      if (user) {
+        router.push('/');
+      }
+    } catch (e: unknown) {
+      setError('Error logging in with GitHub');
+    }
+  };
 
   return (
-    <div className='min-h-screen flex justify-center items-center bg-gradient-to-r from-[#2D336B] via-[#7886C7] to-[#A9B5DF'>   
-      <div className='w-[50em] h-[24em] flex'>
-
+    <div className='min-h-screen flex justify-center items-center bg-gradient-to-r from-[#2D336B] via-[#7886C7] to-[#A9B5DF]'>
+      <div className='w-[50em] h-[26em] flex'>
         <Link href="/login" className="w-1/2 h-full" onClick={() => { setEmail(""); setPassword(""); }}>
           <motion.div
             initial={{ x: 400 }}
@@ -108,7 +118,8 @@ const SignupPage = () => {
           </motion.div>
         </Link>
 
-        <motion.div className="w-1/2 h-full bg-gray-200 flex flex-col border-solid border pl-10 pr-10 pt-5 gap-4"
+        <motion.div
+          className="w-1/2 h-full bg-gray-200 flex flex-col border-solid border pl-10 pr-10 pt-5 gap-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1 }}
@@ -118,21 +129,21 @@ const SignupPage = () => {
               <Label className='font-mono text-2xl font-bold'>Create Account</Label>
 
               <Label className='font-mono text-sm'>Email:</Label>
-              <Input 
-                className='border-[#A9B5DF] font-mono' 
-                name="email" 
+              <Input
+                className='border-[#A9B5DF] font-mono'
+                name="email"
                 placeholder='Email'
                 value={email}
-                onChange={(e) => {setEmail(e.target.value); setError('')}} 
+                onChange={(e) => { setEmail(e.target.value); setError(''); }}
               />
 
               <Label className='font-mono text-sm'>Username:</Label>
-              <Input 
-                className='border-[#A9B5DF] font-mono' 
-                name="username" 
-                placeholder='Username' 
+              <Input
+                className='border-[#A9B5DF] font-mono'
+                name="username"
+                placeholder='Username'
                 value={username}
-                onChange={(e) => {setUsername(e.target.value); setError('')}}
+                onChange={(e) => { setUsername(e.target.value); setError(''); }}
               />
 
               <Label className='font-mono text-sm'>Password:</Label>
@@ -143,7 +154,7 @@ const SignupPage = () => {
                   name="password"
                   placeholder="Password"
                   value={password}
-                  onChange={(e) => {setPassword(e.target.value); setError('')}}
+                  onChange={(e) => { setPassword(e.target.value); setError(''); }}
                 />
                 <button
                   type="button"
@@ -170,6 +181,32 @@ const SignupPage = () => {
               <Button type="submit" className='w-1/2 font-mono hover:bg-gray-700 active:bg-gray-600 cursor-pointer'>
                 Signup
               </Button>
+              <div className='flex justify-between gap-6'>
+                <Button
+                  onClick={handleGoogleSignup}
+                  className='w-auto p-2 flex items-center justify-center bg-white hover:bg-gray-700 active:bg-gray-600'
+                >
+                  <Image
+                    src='/googleLogo.webp'
+                    alt='Google'
+                    width={30}
+                    height={30}
+                  />
+                </Button>
+
+                <Button
+                  onClick={handleGithubSignup}
+                  className='w-auto p-2 flex items-center justify-center bg-white hover:bg-gray-200 active:bg-gray-600'
+                >
+                  <Image
+                    src='/githubLogo.png'
+                    alt='GitHub'
+                    width={30}
+                    height={30}
+                  />
+                </Button>
+              </div>
+
             </div>
           </form>
         </motion.div>
