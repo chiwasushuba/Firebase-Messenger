@@ -1,62 +1,50 @@
-'use client';
+// app/chat/page.tsx
+'use client'
 
-import { useEffect, useRef, useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react'
+import { sendMessage, listenToMessages, startChat } from '@/utils/chat'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { useAuth } from '@/context/AuthContext' // assuming you have auth
 
-export default function ChatPage() {
-  const { user, loading, logout } = useAuth();
-  const router = useRouter();
-  const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<string[]>([]);
-  const socket = useRef<WebSocket | null>(null);
-
+const ChatPage = () => {
+  const { user } = useAuth() // custom hook for current Firebase user
+  const [chatId, setChatId] = useState('')
+  const [messages, setMessages] = useState<any[]>([])
+  const [text, setText] = useState('')
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
+    const uid2 = 'otherUserId'; // Replace with actual user ID you want to chat with
+    if (user?.uid) {
+      startChat(user.uid, uid2).then(id => {
+        setChatId(id)
+        const unsub = listenToMessages(id, setMessages)
+        return () => unsub()
+      })
     }
+  }, [user])
 
-    // Connect to WebSocket server
-    socket.current = new WebSocket('ws://localhost:8080');
-
-    socket.current.onmessage = (event) => {
-      setMessages((prev) => [...prev, event.data]);
-    };
-
-    return () => socket.current?.close();
-  }, [loading, user]);
-
-  const sendMessage = () => {
-    if (!input.trim() || !socket.current) return;
-    const msg = `${user?.email}: ${input}`;
-    socket.current.send(msg);
-    setInput('');
-  };
-  
-
-  if (loading || !user) return <p>Loading...</p>;
+  const handleSend = async () => {
+    if (!text.trim()) return
+    await sendMessage(chatId, user.uid, text)
+    setText('')
+  }
 
   return (
-    <div style={{ padding: '1rem' }}>
-      <h2>Live Chat</h2>
-      <button onClick={logout}>Logout</button>
-
-      <div style={{ height: '300px', border: '1px solid #ccc', padding: '1rem', overflowY: 'auto', marginTop: '1rem' }}>
-        {messages.map((msg, idx) => (
-          <div key={idx}>{msg}</div>
+    <div className="p-4 space-y-4">
+      <div className="border p-2 h-64 overflow-y-scroll bg-gray-50 rounded">
+        {messages.map((msg) => (
+          <div key={msg.id} className="mb-2">
+            <strong>{msg.senderId === user.uid ? 'You' : 'Them'}:</strong> {msg.text}
+          </div>
         ))}
       </div>
-
-      <div style={{ marginTop: '1rem' }}>
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-          placeholder="Type a message"
-        />
-        <button onClick={sendMessage}>Send</button>
+      <div className="flex gap-2">
+        <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Type a message..." />
+        <Button onClick={handleSend}>Send</Button>
       </div>
     </div>
-  );
+  )
 }
+
+export default ChatPage

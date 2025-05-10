@@ -18,7 +18,6 @@ const SignupPage = () => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
   const [error, setError] = useState('');
 
   // Email signup handler
@@ -30,10 +29,7 @@ const SignupPage = () => {
       setError("Email is empty!")
       return
     }
-    if(!username.trim()){
-      setError("Username is username!")
-      return
-    }
+
     if(!password.trim()){
       setError("Password is empty!")
       return
@@ -41,7 +37,7 @@ const SignupPage = () => {
 
     try {
       await createUserWithEmailAndPassword(auth, email, password);
-      router.push('/');
+      router.push('/yourinfo');
     } catch (err: unknown) {
       const error = err as AuthError;
   
@@ -68,7 +64,7 @@ const SignupPage = () => {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
       if (user) {
-        router.push('/');
+        router.push('/yourinfo');
       }
     } catch (e: unknown) {
       setError('Error logging in with Google');
@@ -81,7 +77,7 @@ const SignupPage = () => {
       const result = await signInWithPopup(auth, githubProvider);
       const user = result.user;
       if (user) {
-        router.push('/');
+        router.push('/yourinfo');
       }
     } catch (e: unknown) {
       setError('Error logging in with GitHub');
@@ -119,52 +115,48 @@ const SignupPage = () => {
         </Link>
 
         <motion.div
-          className="w-1/2 h-full bg-gray-200 flex flex-col border-solid border pl-10 pr-10 pt-5 gap-4"
+          className="w-1/2 h-full bg-gray-200 flex flex-col border-solid border p-10 gap-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1 }}
         >
           <form onSubmit={handleSubmit} className="flex flex-col gap-4 h-full">
-            <div className='flex flex-col gap-2'>
+            <div className='flex flex-col gap-6'>
               <Label className='font-mono text-2xl font-bold'>Create Account</Label>
 
-              <Label className='font-mono text-sm'>Email:</Label>
-              <Input
-                className='border-[#A9B5DF] font-mono'
-                name="email"
-                placeholder='Email'
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setError(''); }}
-              />
-
-              <Label className='font-mono text-sm'>Username:</Label>
-              <Input
-                className='border-[#A9B5DF] font-mono'
-                name="username"
-                placeholder='Username'
-                value={username}
-                onChange={(e) => { setUsername(e.target.value); setError(''); }}
-              />
-
-              <Label className='font-mono text-sm'>Password:</Label>
-              <div className="relative">
+              <div className='flex flex-col gap-2'>
+                <Label className='font-mono text-sm'>Email:</Label>
                 <Input
-                  type={isPasswordVisible ? "text" : "password"}
-                  className="border-[#A9B5DF] font-mono w-full"
-                  name="password"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                  className='border-[#A9B5DF] font-mono'
+                  name="email"
+                  placeholder='Email'
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setError(''); }}
                 />
-                <button
-                  type="button"
-                  onClick={() => setIsPasswordVisible((prev) => !prev)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
-                >
-                  {isPasswordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  <span className="sr-only">{isPasswordVisible ? "Hide password" : "Show password"}</span>
-                </button>
               </div>
+
+              <div className='flex flex-col gap-2'>
+                <Label className='font-mono text-sm'>Password:</Label>
+                <div className="relative">
+                  <Input
+                    type={isPasswordVisible ? "text" : "password"}
+                    className="border-[#A9B5DF] font-mono w-full"
+                    name="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsPasswordVisible((prev) => !prev)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                  >
+                    {isPasswordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    <span className="sr-only">{isPasswordVisible ? "Hide password" : "Show password"}</span>
+                  </button>
+                </div>
+              </div>
+
             </div>
 
             <div className='flex flex-col justify-center items-center gap-2'>
