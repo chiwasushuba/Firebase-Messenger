@@ -42,8 +42,6 @@ export default function ProfileSetup() {
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
   const storage = getStorage()
-
-  console.log(storage)
   
   useEffect(() => {
     return () => {
