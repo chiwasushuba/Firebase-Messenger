@@ -41,7 +41,10 @@ export default function ProfileSetup() {
   const [error, setError] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+  const storage = getStorage()
 
+  console.log(storage)
+  
   useEffect(() => {
     return () => {
       if (imagePreview) URL.revokeObjectURL(imagePreview)
@@ -81,13 +84,13 @@ export default function ProfileSetup() {
       let profileImageUrl = ""
 
       if (profile) {
-        const storage = getStorage()
         const imageRef = ref(
           storage,
           `profiles/${user.uid}/${uuidv4()}-${profile.name}`
         )
         await uploadBytes(imageRef, profile)
         profileImageUrl = await getDownloadURL(imageRef)
+        alert("image uploaded!")
       }
 
       await setDoc(doc(db, "users", user.uid), {
