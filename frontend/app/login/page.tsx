@@ -8,10 +8,11 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Eye, EyeOff } from "lucide-react"
-import { auth, githubProvider, googleProvider } from '@/utils/firebase';
+import { auth, db, githubProvider, googleProvider } from '@/utils/firebase';
 import { AuthError, signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { useRouter } from "next/navigation"; 
 import Image from 'next/image';
+import { doc, getDoc } from 'firebase/firestore';
 
 const LoginPage = () => {
   const router = useRouter();
@@ -66,26 +67,48 @@ const LoginPage = () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
+  
       if (user) {
+        const docRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(docRef);
+  
+        if (!docSnap.exists()) {
+          await auth.signOut();
+          setError('No account found. Please sign up first.');
+          return;
+        }
+  
         router.push('/');
       }
     } catch (e: unknown) {
       setError('Error logging in with Google');
     }
   };
+  
 
   // GitHub login handler
   const handleGithubLogin = async () => {
     try {
       const result = await signInWithPopup(auth, githubProvider);
       const user = result.user;
+  
       if (user) {
+        const docRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(docRef);
+  
+        if (!docSnap.exists()) {
+          await auth.signOut();
+          setError('No account found. Please sign up first.');
+          return;
+        }
+  
         router.push('/');
       }
     } catch (e: unknown) {
       setError('Error logging in with GitHub');
     }
   };
+  
   
 
   return (

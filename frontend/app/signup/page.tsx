@@ -9,9 +9,10 @@ import Link from 'next/link';
 import { AuthError } from "firebase/auth";
 import { Eye, EyeOff } from 'lucide-react';
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup } from 'firebase/auth';
-import { auth, googleProvider, githubProvider } from '@/utils/firebase';  // Update to include OAuth providers
+import { auth, googleProvider, githubProvider, db } from '@/utils/firebase';  // Update to include OAuth providers
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { doc, getDoc } from 'firebase/firestore';
 
 const SignupPage = () => {
   const router = useRouter();
@@ -63,26 +64,48 @@ const SignupPage = () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
+  
       if (user) {
+        const docRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(docRef);
+  
+        if (docSnap.exists()) {
+          await auth.signOut();
+          setError('This account already exists. Please log in.');
+          return;
+        }
+  
         router.push('/yourinfo');
       }
     } catch (e: unknown) {
-      setError('Error logging in with Google');
+      setError('Error signing up with Google');
     }
   };
+  
 
   // GitHub signup handler
   const handleGithubSignup = async () => {
     try {
       const result = await signInWithPopup(auth, githubProvider);
       const user = result.user;
+  
       if (user) {
+        const docRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(docRef);
+  
+        if (docSnap.exists()) {
+          await auth.signOut();
+          setError('This account already exists. Please log in.');
+          return;
+        }
+  
         router.push('/yourinfo');
       }
     } catch (e: unknown) {
-      setError('Error logging in with GitHub');
+      setError('Error signing up with GitHub');
     }
   };
+  
 
   return (
     <div className='min-h-screen flex justify-center items-center bg-gradient-to-r from-[#2D336B] via-[#7886C7] to-[#A9B5DF]'>
