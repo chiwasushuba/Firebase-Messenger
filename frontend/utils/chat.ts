@@ -20,13 +20,20 @@ export const startChat = async (uid1: string, uid2: string) => {
   return chatId;
 };
 
-export const sendMessage = async (chatId: string, senderId: string, text: string) => {
+export const sendMessage = async (
+  chatId: string,
+  senderId: string,
+  senderUsername: string,
+  text: string
+) => {
   await addDoc(collection(db, 'chats', chatId, 'messages'), {
     senderId,
+    senderUsername, // add this
     text,
     createdAt: serverTimestamp(),
   });
 };
+
 
 export const listenToMessages = (chatId: string, callback: (msgs: any[]) => void) => {
   const q = query(collection(db, 'chats', chatId, 'messages'), orderBy('createdAt'));

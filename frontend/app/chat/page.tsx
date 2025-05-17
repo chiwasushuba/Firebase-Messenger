@@ -14,7 +14,8 @@ const ChatPage = () => {
   const [messages, setMessages] = useState<any[]>([]) // Store messages
   const [text, setText] = useState('')
   const [users, setUsers] = useState<any[]>([]) // List of users to chat with
-  const [selectedUser, setSelectedUser] = useState<string>('') // Store the selected user ID for chatting
+  const [selectedUser, setSelectedUser] = useState<any | null>(null); // Store the selected user ID for chatting
+  const [userMap, setUserMap] = useState<Record<string, any>>({});
 
   // Fetch all users except the current one
   useEffect(() => {
@@ -26,28 +27,42 @@ const ChatPage = () => {
         .filter((userData: any) => userData.uid !== user?.uid); // Exclude the current user
 
       setUsers(usersList);
+
+      const map: Record<string, any> = {};
+      usersList.forEach(u => {
+        map[u.uid] = u;
+      });
+      if (user) map[user.uid] = user; // Include current user
+      setUserMap(map);
     }
 
     fetchUsers();
   }, [user]);
 
   useEffect(() => {
-    if (!selectedUser || !user?.uid) return;
+    if (!selectedUser?.uid || !user?.uid) return;
 
     // Start a new chat with the selected user
-    startChat(user.uid, selectedUser).then(id => {
+    startChat(user.uid, selectedUser.uid).then(id => {
       setChatId(id) // Set the chat ID
       const unsub = listenToMessages(id, setMessages) // Subscribe to real-time updates
       return () => unsub(); // Clean up the listener on unmount
     });
+
+
+    console.log(selectedUser)
+
+
   }, [selectedUser, user]);
 
   // Handle sending a message
   const handleSend = async () => {
-    if (!text.trim()) return; // Don't send empty messages
-    await sendMessage(chatId, user.uid, text); // Send message using the utility function
-    setText(''); // Clear the input field
-  }
+    if (!text.trim() || !user?.uid || !user?.displayName) return;
+  
+    await sendMessage(chatId, user.uid, user.displayName, text);
+    setText('');
+  };
+  
 
   return (
     <div className="p-4 space-y-4">
@@ -56,7 +71,7 @@ const ChatPage = () => {
         <ul>
           {users.map((u: any) => (
             <li key={u.uid}>
-              <Button onClick={() => setSelectedUser(u.uid)}>{u.username}</Button>
+              <Button onClick={() => setSelectedUser(u)}>{u.username}</Button>
             </li>
           ))}
         </ul>
@@ -65,10 +80,9 @@ const ChatPage = () => {
       {selectedUser && (
         <>
           <div className="border p-2 h-64 overflow-y-scroll bg-gray-50 rounded">
-            {/* Display messages */}
             {messages.map((msg) => (
               <div key={msg.id} className="mb-2">
-                <strong>{msg.senderId === user?.uid ? 'You' : 'Them'}:</strong> {msg.text}
+                <strong>{msg.senderId === user?.uid ? 'You' : msg.senderUsername || 'Unknown'}:</strong> {msg.text}
               </div>
             ))}
           </div>
@@ -87,3 +101,4 @@ const ChatPage = () => {
 }
 
 export default ChatPage;
+ 
