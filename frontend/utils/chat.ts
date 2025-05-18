@@ -7,16 +7,25 @@ import {
   onSnapshot,
   orderBy,
   query,
-  serverTimestamp
+  serverTimestamp,
+  getDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
 
 export const startChat = async (uid1: string, uid2: string) => {
-  const chatId = [uid1, uid2].sort().join('_');
-  await setDoc(doc(db, 'chats', chatId), {
-    participants: [uid1, uid2],
-    createdAt: serverTimestamp(),
-  });
+  const sorted = [uid1, uid2].sort();
+  const chatId = `${sorted[0]}_${sorted[1]}`;
+
+  const chatRef = doc(db, 'chats', chatId);
+  const chatSnap = await getDoc(chatRef);
+
+  if (!chatSnap.exists()) {
+    await setDoc(chatRef, {
+      users: sorted,
+      createdAt: Date.now()
+    });
+  }
+
   return chatId;
 };
 

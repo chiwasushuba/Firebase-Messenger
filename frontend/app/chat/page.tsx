@@ -83,8 +83,8 @@ const ChatPage = () => {
   const handleSend = async () => {
     if (!text.trim() || !user?.uid || !user?.displayName) return;
   
-    const currentUsername = userMap[user?.uid]?.username;
-    console.log(user)
+    const currentUsername = currentUser.username
+    console.log(currentUsername)
 
     await sendMessage(chatId, user.uid, currentUsername || 'Anonymous', text);
     setText('');
