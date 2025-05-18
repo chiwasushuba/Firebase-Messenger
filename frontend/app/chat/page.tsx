@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { sendMessage, listenToMessages, startChat } from '@/utils/chat'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { db } from '@/utils/firebase' // assuming you're importing Firestore
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore' // Import Firestore functions
 import { Label } from '@radix-ui/react-label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import MessageBubble from '@/components/MessageBubble'
 
 const ChatPage = () => {
   const { user } = useAuth() // custom hook for current Firebase user
@@ -19,6 +20,9 @@ const ChatPage = () => {
   const [selectedUser, setSelectedUser] = useState<any | null>(null); // Store the selected user ID for chatting
   const [userMap, setUserMap] = useState<Record<string, any>>({});
   const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // automatic scrolls down
+  const bottomRef = useRef<HTMLDivElement | null>(null);
 
   // fetchCurrentUser
 
@@ -79,6 +83,12 @@ const ChatPage = () => {
 
   }, [selectedUser, user]);
 
+  useEffect(() => {
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
   // Handle sending a message
   const handleSend = async () => {
     if (!text.trim() || !user?.uid || !user?.displayName) return;
@@ -92,34 +102,51 @@ const ChatPage = () => {
   
 
   return (
-    <div className="p-4 space-y-4">
-      <div className='flex flex-col gap-3'>
-        <div className='flex items-center gap-2'>
-          <Avatar className='w-16 h-16 border border-black rounded-full'>
-            <AvatarImage src={currentUser?.profileImageUrl} alt="@shadcn" />
-            <AvatarFallback>CN</AvatarFallback>
-          </Avatar>
-          <h3>Username: {currentUser?.username}</h3>
-        </div>
-        <Label>Select a user to chat with:</Label>
-        <ul>
-          {users.map((u: any) => (
-            <li key={u.uid}>
-              <Button className='mb-2' onClick={() => setSelectedUser(u)}>{u.username}</Button>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {selectedUser && (
-        <>
-          <div className="border p-2 h-64 overflow-y-scroll bg-gray-50 rounded">
-            {messages.map((msg) => (
-              <div key={msg.id} className="mb-2">
-                <strong>{msg.senderId === user?.uid ? 'You' : msg.senderUsername || userMap[msg.senderId]?.username || 'Unknown'}:</strong> {msg.text}
-              </div>
-            ))}
+    <div className="flex h-screen">
+      {/* Sidebar */}
+      <div className="w-72 p-4 space-y-4 border-r border-gray-300">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <Avatar className="w-16 h-16 border border-black rounded-full">
+              <AvatarImage src={currentUser?.profileImageUrl} alt="@user" />
+              <AvatarFallback>CN</AvatarFallback>
+            </Avatar>
+            <h3>Username: {currentUser?.username}</h3>
           </div>
+          <Label>Select a user to chat with:</Label>
+          <ul>
+            {users.map((u: any) => (
+              <li key={u.uid}>
+                <Button className="mb-2" onClick={() => setSelectedUser(u)}>
+                  {u.username}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+  
+      {/* Chat area */}
+      {selectedUser && (
+        <div className="flex flex-col flex-1 p-4 space-y-4 bg-gray-50">
+          {/* Message list */}
+          <div className="flex-1 overflow-y-auto border rounded p-2 space-y-2">
+            {messages.map((msg) => {
+              const isOwnMessage = msg.senderId === user?.uid;
+              return (
+                <MessageBubble
+                  key={msg.id}
+                  msgId={msg.id}
+                  senderUsername={msg.senderUsername || 'Unknown'}
+                  textMessage={msg.text}
+                  isOwnMessage={isOwnMessage}
+                />
+              );
+            })}
+            <div ref={bottomRef} />
+          </div>
+  
+          {/* Message input */}
           <div className="flex gap-2">
             <Input
               value={text}
@@ -134,10 +161,11 @@ const ChatPage = () => {
             />
             <Button onClick={handleSend}>Send</Button>
           </div>
-        </>
+        </div>
       )}
     </div>
-  );
+  );  
+  
 }
 
 export default ChatPage;
