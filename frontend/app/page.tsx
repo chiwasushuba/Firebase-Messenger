@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from "react"
-import { getAuth, onAuthStateChanged, signOut, User } from "firebase/auth"
+import { deleteUser, getAuth, onAuthStateChanged, signOut, User } from "firebase/auth"
 import { db } from "@/utils/firebase"
-import { doc, getDoc } from "firebase/firestore"
+import { deleteDoc, doc, getDoc } from "firebase/firestore"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 
@@ -57,6 +57,32 @@ export default function Home() {
 
   const handleChat = () => {
     router.push("/chat")
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!user) return
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete your account? This action cannot be undone."
+    )
+    if (!confirmDelete) return
+  
+    try {
+      // delete Firestore user document
+      await deleteDoc(doc(db, "users", user.uid))
+  
+      // delete Firebase auth user
+      await deleteUser(user)
+  
+      // after deletion, redirect to login page
+      router.push("/login")
+    } catch (error: any) {
+      if (error.code === "auth/requires-recent-login") {
+        alert("Please logout and login again before deleting your account for security reasons.")
+      } else {
+        alert("Failed to delete account: " + error.message)
+      }
+      console.error("Delete account error:", error)
+    }
   }
 
   if (loading) return <p className="text-center p-6 text-lg font-medium">Loading...</p>
@@ -123,6 +149,13 @@ export default function Home() {
             className="px-6 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold shadow transition-all"
           >
             Logout
+          </button>
+
+          <button
+            onClick={handleDeleteAccount}
+            className="px-6 py-2 rounded-xl bg-gray-800 hover:bg-gray-900 text-white font-semibold shadow transition-all"
+          >
+            Delete Account
           </button>
         </div>
       </motion.div>

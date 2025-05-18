@@ -25,6 +25,7 @@ const ChatPage = () => {
   const [messages, setMessages] = useState<any[]>([])
   const [text, setText] = useState('')
   const [userMap, setUserMap] = useState<Record<string, any>>({})
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const bottomRef = useRef<HTMLDivElement | null>(null)
 
@@ -95,11 +96,17 @@ const ChatPage = () => {
   }
 
   const handleLogout = async () => {
+    setIsLoggingOut(true)
     try {
       await signOut(getAuth())
-      router.push("/login") // Redirect after logout
+  
+      // Optional delay for UI feedback (or animation)
+      setTimeout(() => {
+        router.push('/login')
+      }, 600) // ~0.5s feels smooth
     } catch (error) {
-      console.error("Logout failed:", error)
+      console.error('Logout failed:', error)
+      setIsLoggingOut(false)
     }
   }
 
@@ -190,7 +197,15 @@ const ChatPage = () => {
           </div>
         )}
       </div>
-    </div>
+
+      {isLoggingOut && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm">
+          <p className="text-lg font-semibold text-gray-700">Logging out...</p>
+        </div>
+      )}
+
+      
+    </div>    
   )
 }
 
