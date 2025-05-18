@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/context/AuthContext' // assuming you have auth
 import { db } from '@/utils/firebase' // assuming you're importing Firestore
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore' // Import Firestore functions
+import { Label } from '@radix-ui/react-label'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 const ChatPage = () => {
   const { user } = useAuth() // custom hook for current Firebase user
@@ -75,7 +77,6 @@ const ChatPage = () => {
       return () => unsub(); // Clean up the listener on unmount
     });
 
-
   }, [selectedUser, user]);
 
   // Handle sending a message
@@ -92,13 +93,19 @@ const ChatPage = () => {
 
   return (
     <div className="p-4 space-y-4">
-      <div>
-        <h3>Username: {currentUser?.username}</h3>
-        <h3>Select a user to chat with:</h3>
+      <div className='flex flex-col gap-3'>
+        <div className='flex items-center gap-2'>
+          <Avatar className='w-16 h-16 border border-black rounded-full'>
+            <AvatarImage src={currentUser?.profileImageUrl} alt="@shadcn" />
+            <AvatarFallback>CN</AvatarFallback>
+          </Avatar>
+          <h3>Username: {currentUser?.username}</h3>
+        </div>
+        <Label>Select a user to chat with:</Label>
         <ul>
           {users.map((u: any) => (
             <li key={u.uid}>
-              <Button onClick={() => setSelectedUser(u)}>{u.username}</Button>
+              <Button className='mb-2' onClick={() => setSelectedUser(u)}>{u.username}</Button>
             </li>
           ))}
         </ul>
