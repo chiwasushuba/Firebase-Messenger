@@ -1,172 +1,197 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore'
 import { sendMessage, listenToMessages, startChat } from '@/utils/chat'
+import { db } from '@/utils/firebase'
+import { useAuth } from '@/context/AuthContext'
+
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { useAuth } from '@/context/AuthContext' // assuming you have auth
-import { db } from '@/utils/firebase' // assuming you're importing Firestore
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore' // Import Firestore functions
 import { Label } from '@radix-ui/react-label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import MessageBubble from '@/components/MessageBubble'
+import { signOut, getAuth } from 'firebase/auth'
 
 const ChatPage = () => {
-  const { user } = useAuth() // custom hook for current Firebase user
-  const [chatId, setChatId] = useState<string>('')
-  const [messages, setMessages] = useState<any[]>([]) // Store messages
+  const { user } = useAuth()
+  const router = useRouter()
+
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [users, setUsers] = useState<any[]>([])
+  const [selectedUser, setSelectedUser] = useState<any | null>(null)
+  const [chatId, setChatId] = useState('')
+  const [messages, setMessages] = useState<any[]>([])
   const [text, setText] = useState('')
-  const [users, setUsers] = useState<any[]>([]) // List of users to chat with
-  const [selectedUser, setSelectedUser] = useState<any | null>(null); // Store the selected user ID for chatting
-  const [userMap, setUserMap] = useState<Record<string, any>>({});
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userMap, setUserMap] = useState<Record<string, any>>({})
 
-  // automatic scrolls down
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null)
 
-  // fetchCurrentUser
-
+  // Redirect if not authenticated
   useEffect(() => {
-    if (!user?.uid) return;
-  
-    const fetchCurrentUserProfile = async () => {
+    if (!user) {
+      router.push('/login')
+      return
+    }
+
+    const fetchProfile = async () => {
       try {
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists()) {
-          setCurrentUser(userDocSnap.data());
-          console.log('Current user profile:', userDocSnap.data());
-        } else {
-          console.log('No Firestore profile found for current user');
-          setCurrentUser(null);
+        const userDoc = await getDoc(doc(db, 'users', user.uid))
+        if (userDoc.exists()) {
+          setCurrentUser(userDoc.data())
         }
-      } catch (error) {
-        console.error('Error fetching current user profile:', error);
+      } catch (err) {
+        console.error('Error fetching user profile', err)
       }
-    };
-  
-    fetchCurrentUserProfile();
-  }, [user]);
+    }
 
+    fetchProfile()
+  }, [user])
 
-  // Fetch all users except the current one
+  // Fetch other users
   useEffect(() => {
     const fetchUsers = async () => {
-      const usersRef = collection(db, 'users');
-      const querySnapshot = await getDocs(usersRef);
-      const usersList = querySnapshot.docs
+      const snapshot = await getDocs(collection(db, 'users'))
+      const usersList = snapshot.docs
         .map(doc => doc.data())
-        .filter((userData: any) => userData.uid !== user?.uid); // Exclude the current user
+        .filter(u => u.uid !== user?.uid)
 
-      setUsers(usersList);
+      setUsers(usersList)
 
-      const map: Record<string, any> = {};
-      usersList.forEach(u => {
-        map[u.uid] = u;
-      });
-      if (user) map[user.uid] = user; // Include current user
-      setUserMap(map);
+      const map: Record<string, any> = {}
+      usersList.forEach(u => (map[u.uid] = u))
+      if (user) map[user.uid] = user
+      setUserMap(map)
     }
-    fetchUsers();
-  }, [user]);
-  
+
+    if (user) fetchUsers()
+  }, [user])
+
+  // Start chat and listen to messages
+  useEffect(() => {
+    if (!selectedUser?.uid || !user?.uid) return
+
+    const initChat = async () => {
+      const id = await startChat(user.uid, selectedUser.uid)
+      setChatId(id)
+      const unsubscribe = listenToMessages(id, setMessages)
+      return () => unsubscribe()
+    }
+
+    initChat()
+  }, [selectedUser, user])
 
   useEffect(() => {
-    if (!selectedUser?.uid || !user?.uid) return;
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
-    // Start a new chat with the selected user
-    startChat(user.uid, selectedUser.uid).then(id => {
-      setChatId(id) // Set the chat ID
-      const unsub = listenToMessages(id, setMessages) // Subscribe to real-time updates
-      return () => unsub(); // Clean up the listener on unmount
-    });
-
-  }, [selectedUser, user]);
-
-  useEffect(() => {
-    if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages]);
-
-  // Handle sending a message
   const handleSend = async () => {
-    if (!text.trim() || !user?.uid || !user?.displayName) return;
-  
-    const currentUsername = currentUser.username
-    console.log(currentUsername)
+    if (!text.trim() || !user?.uid) return
 
-    await sendMessage(chatId, user.uid, currentUsername || 'Anonymous', text);
-    setText('');
-  };
-  
+    const username = currentUser?.username || 'Anonymous'
+    await sendMessage(chatId, user.uid, username, text.trim())
+    setText('')
+  }
+
+  const handleLogout = async () => {
+    try {
+      await signOut(getAuth())
+      router.push("/login") // Redirect after logout
+    } catch (error) {
+      console.error("Logout failed:", error)
+    }
+  }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-white text-gray-800">
       {/* Sidebar */}
-      <div className="w-72 p-4 space-y-4 border-r border-gray-300">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <Avatar className="w-16 h-16 border border-black rounded-full">
-              <AvatarImage src={currentUser?.profileImageUrl} alt="@user" />
-              <AvatarFallback>CN</AvatarFallback>
-            </Avatar>
-            <h3>Username: {currentUser?.username}</h3>
+      <div className="w-72 border-r px-4 py-6 space-y-6 bg-gray-100">
+        <div className="flex items-center gap-4">
+          <Avatar className="h-14 w-14 border">
+            <AvatarImage src={currentUser?.profileImageUrl} alt="@user" />
+            <AvatarFallback>U</AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="text-sm text-muted-foreground">Logged in as</p>
+            <p className="font-semibold">{currentUser?.username || 'User'}</p>
           </div>
-          <Label>Select a user to chat with:</Label>
-          <ul>
-            {users.map((u: any) => (
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-sm">Select a user:</Label>
+          <ul className="space-y-2">
+            {users.map(u => (
               <li key={u.uid}>
-                <Button className="mb-2" onClick={() => setSelectedUser(u)}>
+                <Button
+                  variant={selectedUser?.uid === u.uid ? 'default' : 'outline'}
+                  className="w-full justify-start"
+                  onClick={() => setSelectedUser(u)}
+                >
                   {u.username}
                 </Button>
               </li>
             ))}
           </ul>
         </div>
+
+        <div className="flex justify-between space-y-2 pt-4 border-t mt-auto">
+          <Button
+            variant="outline"
+            className="w-1/2"
+            onClick={() => router.push('/')}
+          >
+            About
+          </Button>
+          <Button
+            variant="destructive"
+            className="w-1/2"
+            onClick={handleLogout}
+          >
+            Logout
+          </Button>
+        </div>
       </div>
-  
-      {/* Chat area */}
-      {selectedUser && (
-        <div className="flex flex-col flex-1 p-4 space-y-4 bg-gray-50">
-          {/* Message list */}
-          <div className="flex-1 overflow-y-auto border rounded p-2 space-y-2">
-            {messages.map((msg) => {
-              const isOwnMessage = msg.senderId === user?.uid;
-              return (
+
+      {/* Chat Area */}
+      <div className="flex flex-1 flex-col px-6 py-4">
+        {selectedUser ? (
+          <>
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto space-y-2 bg-gray-50 border rounded-lg p-4">
+              {messages.map(msg => (
                 <MessageBubble
                   key={msg.id}
                   msgId={msg.id}
                   senderUsername={msg.senderUsername || 'Unknown'}
                   textMessage={msg.text}
-                  isOwnMessage={isOwnMessage}
+                  isOwnMessage={msg.senderId === user?.uid}
                 />
-              );
-            })}
-            <div ref={bottomRef} />
+              ))}
+              <div ref={bottomRef} />
+            </div>
+
+            {/* Input */}
+            <div className="mt-4 flex gap-2">
+              <Input
+                value={text}
+                onChange={e => setText(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleSend()
+                }}
+                placeholder="Type your message..."
+              />
+              <Button onClick={handleSend}>Send</Button>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-gray-500">
+            Select a user to start chatting.
           </div>
-  
-          {/* Message input */}
-          <div className="flex gap-2">
-            <Input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder="Type a message..."
-            />
-            <Button onClick={handleSend}>Send</Button>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
-  );  
-  
+  )
 }
 
-export default ChatPage;
- 
+export default ChatPage

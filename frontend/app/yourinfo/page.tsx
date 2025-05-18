@@ -102,7 +102,7 @@ export default function ProfileSetup() {
         createdAt: new Date()
       })
 
-      router.push("/")
+      router.push("/chat")
     } catch (err) {
       console.error("Error saving profile:", err)
       setError("Failed to save profile. Please try again.")

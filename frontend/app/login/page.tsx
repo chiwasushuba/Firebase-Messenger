@@ -37,7 +37,7 @@ const LoginPage = () => {
     }
     try{
       await signInWithEmailAndPassword(auth, email, password);
-      router.push("/")
+      router.push("/chat")
       
     } catch (err: unknown) {
       const error = err as AuthError;
@@ -78,7 +78,7 @@ const LoginPage = () => {
           return;
         }
   
-        router.push('/');
+        router.push('/chat');
       }
     } catch (e: unknown) {
       setError('Error logging in with Google');
@@ -102,7 +102,7 @@ const LoginPage = () => {
           return;
         }
   
-        router.push('/');
+        router.push('/chat');
       }
     } catch (e: unknown) {
       setError('Error logging in with GitHub');
