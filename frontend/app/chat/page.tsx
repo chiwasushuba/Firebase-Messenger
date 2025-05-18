@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/context/AuthContext' // assuming you have auth
 import { db } from '@/utils/firebase' // assuming you're importing Firestore
-import { collection, getDocs } from 'firebase/firestore' // Import Firestore functions
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore' // Import Firestore functions
 
 const ChatPage = () => {
   const { user } = useAuth() // custom hook for current Firebase user
@@ -16,6 +16,32 @@ const ChatPage = () => {
   const [users, setUsers] = useState<any[]>([]) // List of users to chat with
   const [selectedUser, setSelectedUser] = useState<any | null>(null); // Store the selected user ID for chatting
   const [userMap, setUserMap] = useState<Record<string, any>>({});
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // fetchCurrentUser
+
+  useEffect(() => {
+    if (!user?.uid) return;
+  
+    const fetchCurrentUserProfile = async () => {
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          setCurrentUser(userDocSnap.data());
+          console.log('Current user profile:', userDocSnap.data());
+        } else {
+          console.log('No Firestore profile found for current user');
+          setCurrentUser(null);
+        }
+      } catch (error) {
+        console.error('Error fetching current user profile:', error);
+      }
+    };
+  
+    fetchCurrentUserProfile();
+  }, [user]);
+
 
   // Fetch all users except the current one
   useEffect(() => {
@@ -35,9 +61,9 @@ const ChatPage = () => {
       if (user) map[user.uid] = user; // Include current user
       setUserMap(map);
     }
-
     fetchUsers();
   }, [user]);
+  
 
   useEffect(() => {
     if (!selectedUser?.uid || !user?.uid) return;
@@ -50,16 +76,16 @@ const ChatPage = () => {
     });
 
 
-    console.log(selectedUser)
-
-
   }, [selectedUser, user]);
 
   // Handle sending a message
   const handleSend = async () => {
     if (!text.trim() || !user?.uid || !user?.displayName) return;
   
-    await sendMessage(chatId, user.uid, user.displayName, text);
+    const currentUsername = userMap[user?.uid]?.username;
+    console.log(user)
+
+    await sendMessage(chatId, user.uid, currentUsername || 'Anonymous', text);
     setText('');
   };
   
@@ -67,6 +93,7 @@ const ChatPage = () => {
   return (
     <div className="p-4 space-y-4">
       <div>
+        <h3>Username: {currentUser?.username}</h3>
         <h3>Select a user to chat with:</h3>
         <ul>
           {users.map((u: any) => (
@@ -82,7 +109,7 @@ const ChatPage = () => {
           <div className="border p-2 h-64 overflow-y-scroll bg-gray-50 rounded">
             {messages.map((msg) => (
               <div key={msg.id} className="mb-2">
-                <strong>{msg.senderId === user?.uid ? 'You' : msg.senderUsername || 'Unknown'}:</strong> {msg.text}
+                <strong>{msg.senderId === user?.uid ? 'You' : msg.senderUsername || userMap[msg.senderId]?.username || 'Unknown'}:</strong> {msg.text}
               </div>
             ))}
           </div>
@@ -90,6 +117,12 @@ const ChatPage = () => {
             <Input
               value={text}
               onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
               placeholder="Type a message..."
             />
             <Button onClick={handleSend}>Send</Button>
