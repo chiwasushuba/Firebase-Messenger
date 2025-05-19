@@ -9,7 +9,8 @@ Reason for creating this project: Live Chat is a real-time messaging app built w
 - Setting up Profile ("/yourinfo")
 
 ## Link for the deployed project
-- (LINK)
+- [(LINK)](https://livechat-83a0f.firebaseapp.com/login)
+- [(LINK)](https://livechat-83a0f.firebaseapp.com)
 
 ## Demo:
 ![image](https://github.com/user-attachments/assets/74fb81c4-5497-43d1-9e96-f759c10f43e8)
