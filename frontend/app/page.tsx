@@ -86,7 +86,6 @@ export default function Home() {
   }
 
   if (loading) return <p className="text-center p-6 text-lg font-medium">Loading...</p>
-  if (!user) return <p className="text-center p-6 text-lg font-medium">You must be logged in to view this page.</p>
 
   const technologies = [
     "Next.js",
@@ -138,26 +137,37 @@ export default function Home() {
         </div>
 
         <div className="flex justify-center gap-6 pt-6">
-          <button
-            onClick={handleChat}
-            className="px-6 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow transition-all"
-          >
-            Go to Chat
-          </button>
-          <button
-            onClick={handleLogout}
-            className="px-6 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold shadow transition-all"
-          >
-            Logout
-          </button>
-
-          <button
-            onClick={handleDeleteAccount}
-            className="px-6 py-2 rounded-xl bg-gray-800 hover:bg-gray-900 text-white font-semibold shadow transition-all"
-          >
-            Delete Account
-          </button>
+          {!user ? (
+            <button
+              onClick={() => router.push("/login")}
+              className="px-6 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow transition-all"
+            >
+              Login
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={handleChat}
+                className="px-6 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow transition-all"
+              >
+                Go to Chat
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-6 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold shadow transition-all"
+              >
+                Logout
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                className="px-6 py-2 rounded-xl bg-gray-800 hover:bg-gray-900 text-white font-semibold shadow transition-all"
+              >
+                Delete Account
+              </button>
+            </>
+          )}
         </div>
+
       </motion.div>
     </div>
   )
